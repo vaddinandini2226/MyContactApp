@@ -1,102 +1,85 @@
 package mycontactapp;
 
 /*
- * UC-07: Delete Contact
- * Description: Deletes a contact after user confirmation using
- * Observer Pattern and demonstrates soft delete and hard delete.
+ * UC-08: Bulk Contact Operations
+ * Description: Performs bulk operations like delete, tag,
+ * and export on multiple contacts using Composite Pattern.
  */
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
+import java.util.stream.Collectors;
 
-//================== Observer Interface ==================
-interface Observer {
+//================== Contact Component ==================
+interface ContactComponent {
 
-    void update(String message);
-}
+    void delete();
 
-//================== Activity Logger ==================
-class ActivityLogger implements Observer {
+    void addTag(String tag);
 
-    @Override
-    public void update(String message) {
-        System.out.println("Logger : " + message);
-    }
-}
-
-//================== Notification Service ==================
-class NotificationService implements Observer {
-
-    @Override
-    public void update(String message) {
-        System.out.println("Notification : " + message);
-    }
+    void export();
 }
 
 //================== Contact Class ==================
-class Contact {
+class Contact implements ContactComponent {
 
-    private int contactId;
     private String name;
     private String phoneNumber;
-    private boolean deleted;
+    private List<String> tags = new ArrayList<>();
 
-    private List<Observer> observers = new ArrayList<>();
-
-    public Contact(int contactId, String name, String phoneNumber) {
-        this.contactId = contactId;
+    public Contact(String name, String phoneNumber) {
         this.name = name;
         this.phoneNumber = phoneNumber;
-        this.deleted = false;
-    }
-
-    public int getContactId() {
-        return contactId;
     }
 
     public String getName() {
         return name;
     }
 
-    public boolean isDeleted() {
-        return deleted;
+    @Override
+    public void delete() {
+        System.out.println(name + " deleted.");
     }
 
-    public void addObserver(Observer observer) {
-        observers.add(observer);
+    @Override
+    public void addTag(String tag) {
+        tags.add(tag);
+        System.out.println("Tag '" + tag + "' added to " + name);
     }
 
-    private void notifyObservers(String message) {
-
-        for (Observer observer : observers) {
-            observer.update(message);
-        }
-    }
-
-    // Soft Delete
-    public void softDelete() {
-
-        deleted = true;
-
-        notifyObservers("Contact '" + name + "' moved to recycle bin.");
-    }
-
-    // Hard Delete
-    public void hardDelete(List<Contact> contacts) {
-
-        contacts.remove(this);
-
-        notifyObservers("Contact '" + name + "' permanently deleted.");
+    @Override
+    public void export() {
+        System.out.println(name + " - " + phoneNumber);
     }
 
     @Override
     public String toString() {
+        return name + " (" + phoneNumber + ")";
+    }
+}
 
-        return "\nContact ID : " + contactId
-                + "\nName       : " + name
-                + "\nPhone      : " + phoneNumber
-                + "\nDeleted    : " + deleted;
+//================== Composite Class ==================
+class ContactGroup implements ContactComponent {
+
+    private List<ContactComponent> contacts = new ArrayList<>();
+
+    public void add(ContactComponent contact) {
+        contacts.add(contact);
+    }
+
+    @Override
+    public void delete() {
+        contacts.forEach(ContactComponent::delete);
+    }
+
+    @Override
+    public void addTag(String tag) {
+        contacts.forEach(contact -> contact.addTag(tag));
+    }
+
+    @Override
+    public void export() {
+        contacts.forEach(ContactComponent::export);
     }
 }
 
@@ -105,63 +88,33 @@ public class UserRegistration {
 
     public static void main(String[] args) {
 
-        Scanner sc = new Scanner(System.in);
+        List<Contact> contactList = new ArrayList<>();
 
-        List<Contact> contacts = new ArrayList<>();
+        contactList.add(new Contact("Nandini", "9876543210"));
+        contactList.add(new Contact("Rahul", "9876501234"));
+        contactList.add(new Contact("Priya", "9123456789"));
+        contactList.add(new Contact("Ramesh", "9876123456"));
 
-        Contact contact = new Contact(
-                101,
-                "Nandini",
-                "9876543210");
+        System.out.println("===== All Contacts =====");
 
-        contact.addObserver(new ActivityLogger());
-        contact.addObserver(new NotificationService());
+        contactList.forEach(System.out::println);
 
-        contacts.add(contact);
+        // Filtering using Streams API
+        List<Contact> selectedContacts = contactList.stream()
+                .filter(contact -> contact.getName().startsWith("R"))
+                .collect(Collectors.toList());
 
-        try {
+        ContactGroup group = new ContactGroup();
 
-            System.out.println("===== Delete Contact =====");
+        selectedContacts.forEach(group::add);
 
-            System.out.println(contact);
+        System.out.println("\n===== Bulk Tag Operation =====");
+        group.addTag("Friends");
 
-            System.out.print("\nAre you sure you want to delete this contact? (yes/no) : ");
-            String confirm = sc.nextLine();
+        System.out.println("\n===== Bulk Export Operation =====");
+        group.export();
 
-            if (confirm.equalsIgnoreCase("yes")) {
-
-                System.out.print("1. Soft Delete\n2. Hard Delete\nEnter Choice : ");
-                int choice = Integer.parseInt(sc.nextLine());
-
-                if (choice == 1) {
-
-                    contact.softDelete();
-
-                    System.out.println("\nContact Soft Deleted Successfully.");
-                    System.out.println(contact);
-
-                } else if (choice == 2) {
-
-                    contact.hardDelete(contacts);
-
-                    System.out.println("\nContact Hard Deleted Successfully.");
-                    System.out.println("Remaining Contacts : " + contacts.size());
-
-                } else {
-
-                    System.out.println("Invalid Choice.");
-                }
-
-            } else {
-
-                System.out.println("Delete Operation Cancelled.");
-            }
-
-        } catch (Exception e) {
-
-            System.out.println("Error : " + e.getMessage());
-        }
-
-        sc.close();
+        System.out.println("\n===== Bulk Delete Operation =====");
+        group.delete();
     }
 }
