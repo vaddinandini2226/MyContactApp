@@ -1,29 +1,24 @@
 package mycontactapp;
 /*
- * UC-01: User Registration
- * Description: Registers a new user using Builder and Factory patterns
- * with input validation and password hashing.
+ * UC-02: User Authentication
+ * Description: Authenticates a registered user using different
+ * authentication methods and maintains the user session.
  */
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 import java.util.Scanner;
 
 //================== User Class ==================
 class User {
 
-    private String name;
     private String email;
     private String password;
 
-    public User(String name, String email, String password) {
-        this.name = name;
+    public User(String email, String password) {
         this.email = email;
-        this.password = password;
-    }
-
-    public String getName() {
-        return name;
+        this.password = PasswordUtil.hashPassword(password);
     }
 
     public String getEmail() {
@@ -33,83 +28,94 @@ class User {
     public String getPassword() {
         return password;
     }
-
-    public void display() {
-        System.out.println("\n===== User Details =====");
-        System.out.println("Name      : " + name);
-        System.out.println("Email     : " + email);
-        System.out.println("Password  : " + password);
-    }
 }
 
-//================== Free User ==================
-class FreeUser extends User {
+//================== Authentication Interface ==================
+interface Authentication {
 
-    public FreeUser(String name, String email, String password) {
-        super(name, email, password);
-    }
+    Optional<User> login(String email, String password);
 }
 
-//================== Premium User ==================
-class PremiumUser extends User {
+//================== Basic Authentication ==================
+class BasicAuth implements Authentication {
 
-    public PremiumUser(String name, String email, String password) {
-        super(name, email, password);
-    }
-}
+    private User user;
 
-//================== Builder Pattern ==================
-class UserBuilder {
-
-    private String name;
-    private String email;
-    private String password;
-
-    public UserBuilder setName(String name) {
-        this.name = name;
-        return this;
+    public BasicAuth(User user) {
+        this.user = user;
     }
 
-    public UserBuilder setEmail(String email) {
-        this.email = email;
-        return this;
-    }
+    @Override
+    public Optional<User> login(String email, String password) {
 
-    public UserBuilder setPassword(String password) {
-        this.password = password;
-        return this;
-    }
+        String hashedPassword = PasswordUtil.hashPassword(password);
 
-    public User build() {
-        return new User(name, email, password);
-    }
-}
+        if (user.getEmail().equals(email)
+                && user.getPassword().equals(hashedPassword)) {
 
-//================== Factory Pattern ==================
-class UserFactory {
-
-    public static User createUser(String type, String name, String email, String password) {
-
-        UserBuilder builder = new UserBuilder()
-                .setName(name)
-                .setEmail(email)
-                .setPassword(password);
-
-        User user = builder.build();
-
-        if (type.equalsIgnoreCase("Premium")) {
-            return new PremiumUser(user.getName(), user.getEmail(), user.getPassword());
+            return Optional.of(user);
         }
 
-        return new FreeUser(user.getName(), user.getEmail(), user.getPassword());
+        return Optional.empty();
     }
 }
 
-//================== Validation ==================
-class Validator {
+//================== OAuth Authentication ==================
+class OAuth implements Authentication {
 
-    public static boolean validateEmail(String email) {
-        return email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+    @Override
+    public Optional<User> login(String email, String password) {
+
+        System.out.println("OAuth Authentication Successful.");
+
+        User user = new User(email, password);
+
+        return Optional.of(user);
+    }
+}
+
+//================== Strategy Pattern ==================
+class AuthenticationContext {
+
+    private Authentication authentication;
+
+    public AuthenticationContext(Authentication authentication) {
+        this.authentication = authentication;
+    }
+
+    public Optional<User> authenticate(String email, String password) {
+        return authentication.login(email, password);
+    }
+}
+
+//================== Singleton Session Manager ==================
+class SessionManager {
+
+    private static SessionManager sessionManager;
+    private User currentUser;
+
+    private SessionManager() {
+    }
+
+    public static SessionManager getInstance() {
+
+        if (sessionManager == null) {
+            sessionManager = new SessionManager();
+        }
+
+        return sessionManager;
+    }
+
+    public void createSession(User user) {
+        currentUser = user;
+    }
+
+    public User getCurrentUser() {
+        return currentUser;
+    }
+
+    public void logout() {
+        currentUser = null;
     }
 }
 
@@ -121,6 +127,7 @@ class PasswordUtil {
         try {
 
             MessageDigest md = MessageDigest.getInstance("SHA-256");
+
             byte[] hash = md.digest(password.getBytes());
 
             StringBuilder sb = new StringBuilder();
@@ -132,6 +139,7 @@ class PasswordUtil {
             return sb.toString();
 
         } catch (NoSuchAlgorithmException e) {
+
             return password;
         }
     }
@@ -144,38 +152,54 @@ public class UserRegistration {
 
         Scanner sc = new Scanner(System.in);
 
+        // Registered user (Dummy Data)
+        User registeredUser = new User("nandini@gmail.com", "admin123");
+
         try {
 
-            System.out.println("===== User Registration =====");
-
-            System.out.print("Enter Name : ");
-            String name = sc.nextLine();
+            System.out.println("===== User Authentication =====");
 
             System.out.print("Enter Email : ");
             String email = sc.nextLine();
 
-            if (!Validator.validateEmail(email)) {
-                throw new Exception("Invalid Email Address!");
-            }
-
             System.out.print("Enter Password : ");
             String password = sc.nextLine();
 
-            if (password.length() < 6) {
-                throw new Exception("Password must contain at least 6 characters!");
+            System.out.println("\nSelect Authentication Method");
+            System.out.println("1. Basic Authentication");
+            System.out.println("2. OAuth Authentication");
+            System.out.print("Enter Choice : ");
+
+            int choice = sc.nextInt();
+
+            Authentication authentication;
+
+            if (choice == 2) {
+                authentication = new OAuth();
+            } else {
+                authentication = new BasicAuth(registeredUser);
             }
 
-            password = PasswordUtil.hashPassword(password);
+            AuthenticationContext context = new AuthenticationContext(authentication);
 
-            System.out.print("Enter User Type (Free/Premium) : ");
-            String type = sc.nextLine();
+            Optional<User> user = context.authenticate(email, password);
 
-            User user = UserFactory.createUser(type, name, email, password);
+            if (user.isPresent()) {
 
-            System.out.println("\nRegistration Successful!");
-            user.display();
+                SessionManager session = SessionManager.getInstance();
+
+                session.createSession(user.get());
+
+                System.out.println("\nLogin Successful.");
+                System.out.println("Logged in User : " + session.getCurrentUser().getEmail());
+
+            } else {
+
+                System.out.println("\nInvalid Email or Password.");
+            }
 
         } catch (Exception e) {
+
             System.out.println("Error : " + e.getMessage());
         }
 
