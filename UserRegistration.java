@@ -1,180 +1,105 @@
 package mycontactapp;
 
 /*
- * UC-10: Filter Contacts
- * Description: Applies multiple filters like tag, date added,
- * and frequently contacted using Composite and Strategy patterns.
+ * UC-11: Contact Tags
+ * Description: Creates custom tags and assigns them to contacts
+ * using Flyweight Pattern for shared tag objects.
  */
 
-import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Objects;
+import java.util.Scanner;
+import java.util.Set;
+
+//================== Predefined Tags ==================
+enum PredefinedTag {
+    FAMILY,
+    FRIENDS,
+    WORK
+}
+
+//================== Tag Class ==================
+class Tag {
+
+    private String tagName;
+
+    public Tag(String tagName) {
+
+        if (tagName == null || tagName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Tag cannot be empty.");
+        }
+
+        this.tagName = tagName;
+    }
+
+    public String getTagName() {
+        return tagName;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+
+        if (this == obj)
+            return true;
+
+        if (!(obj instanceof Tag))
+            return false;
+
+        Tag tag = (Tag) obj;
+
+        return tagName.equalsIgnoreCase(tag.tagName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(tagName.toLowerCase());
+    }
+
+    @Override
+    public String toString() {
+        return tagName;
+    }
+}
+
+//================== Flyweight Factory ==================
+class TagFactory {
+
+    private static HashMap<String, Tag> tags = new HashMap<>();
+
+    public static Tag getTag(String tagName) {
+
+        String key = tagName.toLowerCase();
+
+        if (!tags.containsKey(key)) {
+            tags.put(key, new Tag(tagName));
+        }
+
+        return tags.get(key);
+    }
+}
 
 //================== Contact Class ==================
 class Contact {
 
     private String name;
-    private String tag;
-    private LocalDate dateAdded;
-    private int contactCount;
+    private Set<Tag> tags = new HashSet<>();
 
-    public Contact(String name, String tag, LocalDate dateAdded, int contactCount) {
+    public Contact(String name) {
         this.name = name;
-        this.tag = tag;
-        this.dateAdded = dateAdded;
-        this.contactCount = contactCount;
     }
 
-    public String getName() {
-        return name;
+    public void addTag(Tag tag) {
+        tags.add(tag);
     }
 
-    public String getTag() {
-        return tag;
-    }
+    public void display() {
 
-    public LocalDate getDateAdded() {
-        return dateAdded;
-    }
-
-    public int getContactCount() {
-        return contactCount;
-    }
-
-    @Override
-    public String toString() {
-        return "\nName          : " + name
-                + "\nTag           : " + tag
-                + "\nDate Added    : " + dateAdded
-                + "\nContact Count : " + contactCount;
-    }
-}
-
-//================== Filter Interface ==================
-interface ContactFilter {
-
-    List<Contact> filter(List<Contact> contacts);
-}
-
-//================== Tag Filter ==================
-class TagFilter implements ContactFilter {
-
-    private String tag;
-
-    public TagFilter(String tag) {
-        this.tag = tag;
-    }
-
-    @Override
-    public List<Contact> filter(List<Contact> contacts) {
-
-        return contacts.stream()
-                .filter(contact -> contact.getTag().equalsIgnoreCase(tag))
-                .collect(Collectors.toList());
-    }
-}
-
-//================== Date Filter ==================
-class DateFilter implements ContactFilter {
-
-    private LocalDate date;
-
-    public DateFilter(LocalDate date) {
-        this.date = date;
-    }
-
-    @Override
-    public List<Contact> filter(List<Contact> contacts) {
-
-        return contacts.stream()
-                .filter(contact -> contact.getDateAdded().isEqual(date))
-                .collect(Collectors.toList());
-    }
-}
-
-//================== Frequently Contacted Filter ==================
-class FrequentContactFilter implements ContactFilter {
-
-    private int minimumCount;
-
-    public FrequentContactFilter(int minimumCount) {
-        this.minimumCount = minimumCount;
-    }
-
-    @Override
-    public List<Contact> filter(List<Contact> contacts) {
-
-        return contacts.stream()
-                .filter(contact -> contact.getContactCount() >= minimumCount)
-                .collect(Collectors.toList());
-    }
-}
-
-//================== Composite Filter ==================
-class CompositeFilter implements ContactFilter {
-
-    private List<ContactFilter> filters = new ArrayList<>();
-
-    public void addFilter(ContactFilter filter) {
-        filters.add(filter);
-    }
-
-    @Override
-    public List<Contact> filter(List<Contact> contacts) {
-
-        List<Contact> result = contacts;
-
-        for (ContactFilter filter : filters) {
-            result = filter.filter(result);
-        }
-
-        return result;
-    }
-}
-
-//================== Strategy Interface ==================
-interface SortStrategy {
-
-    List<Contact> sort(List<Contact> contacts);
-}
-
-//================== Sort By Name ==================
-class NameSortStrategy implements SortStrategy {
-
-    @Override
-    public List<Contact> sort(List<Contact> contacts) {
-
-        return contacts.stream()
-                .sorted(Comparator.comparing(Contact::getName))
-                .collect(Collectors.toList());
-    }
-}
-
-//================== Sort By Contact Count ==================
-class ContactCountSortStrategy implements SortStrategy {
-
-    @Override
-    public List<Contact> sort(List<Contact> contacts) {
-
-        return contacts.stream()
-                .sorted(Comparator.comparing(Contact::getContactCount).reversed())
-                .collect(Collectors.toList());
-    }
-}
-
-//================== Strategy Context ==================
-class FilterManager {
-
-    private SortStrategy strategy;
-
-    public FilterManager(SortStrategy strategy) {
-        this.strategy = strategy;
-    }
-
-    public List<Contact> sortContacts(List<Contact> contacts) {
-        return strategy.sort(contacts);
+        System.out.println("\nContact Name : " + name);
+        System.out.println("Tags         : " + tags);
     }
 }
 
@@ -183,31 +108,43 @@ public class UserRegistration {
 
     public static void main(String[] args) {
 
-        List<Contact> contacts = new ArrayList<>();
+        Scanner sc = new Scanner(System.in);
 
-        contacts.add(new Contact("Nandini", "Friend", LocalDate.of(2025, 1, 10), 20));
-        contacts.add(new Contact("Rahul", "Office", LocalDate.of(2025, 2, 15), 8));
-        contacts.add(new Contact("Priya", "Friend", LocalDate.of(2025, 1, 10), 15));
-        contacts.add(new Contact("Ramesh", "Family", LocalDate.of(2025, 3, 20), 25));
+        Contact contact = new Contact("Nandini");
 
-        CompositeFilter compositeFilter = new CompositeFilter();
+        try {
 
-        compositeFilter.addFilter(new TagFilter("Friend"));
-        compositeFilter.addFilter(new DateFilter(LocalDate.of(2025, 1, 10)));
-        compositeFilter.addFilter(new FrequentContactFilter(10));
+            System.out.println("===== Contact Tags =====");
 
-        List<Contact> filteredContacts = compositeFilter.filter(contacts);
+            EnumSet<PredefinedTag> predefinedTags =
+                    EnumSet.allOf(PredefinedTag.class);
 
-        FilterManager manager = new FilterManager(new ContactCountSortStrategy());
+            System.out.println("Predefined Tags : " + predefinedTags);
 
-        filteredContacts = manager.sortContacts(filteredContacts);
+            System.out.print("\nHow Many Custom Tags? : ");
+            int n = sc.nextInt();
+            sc.nextLine();
 
-        System.out.println("===== Filtered Contacts =====");
+            for (int i = 1; i <= n; i++) {
 
-        if (filteredContacts.isEmpty()) {
-            System.out.println("No Contacts Found.");
-        } else {
-            filteredContacts.forEach(System.out::println);
+                System.out.print("Enter Tag " + i + " : ");
+
+                String tagName = sc.nextLine();
+
+                Tag tag = TagFactory.getTag(tagName);
+
+                contact.addTag(tag);
+            }
+
+            System.out.println("\nTags Assigned Successfully.");
+
+            contact.display();
+
+        } catch (Exception e) {
+
+            System.out.println("Error : " + e.getMessage());
         }
+
+        sc.close();
     }
 }
