@@ -1,175 +1,126 @@
 package mycontactapp;
 
 /*
- * UC-04: Create Contact
- * Description: Creates a new contact with multiple phone numbers,
- * email addresses, and optional fields using Builder and Factory patterns.
+ * UC-05: View Contact
+ * Description: Displays complete information of a contact using
+ * Decorator Pattern with formatted output.
  */
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.Optional;
 import java.util.UUID;
-
-//================== Phone Number ==================
-class PhoneNumber {
-
-    private String number;
-
-    public PhoneNumber(String number) {
-        this.number = number;
-    }
-
-    public String getNumber() {
-        return number;
-    }
-}
-
-//================== Email ==================
-class Email {
-
-    private String email;
-
-    public Email(String email) {
-        this.email = email;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-}
 
 //================== Contact Class ==================
 class Contact {
 
     private UUID contactId;
     private String name;
-    private List<PhoneNumber> phoneNumbers;
-    private List<Email> emailAddresses;
+    private String phoneNumber;
+    private String email;
     private String address;
-    private LocalDateTime createdOn;
 
-    public Contact(String name, List<PhoneNumber> phoneNumbers,
-                   List<Email> emailAddresses, String address) {
-
+    public Contact(String name, String phoneNumber, String email, String address) {
         this.contactId = UUID.randomUUID();
         this.name = name;
-        this.phoneNumbers = phoneNumbers;
-        this.emailAddresses = emailAddresses;
+        this.phoneNumber = phoneNumber;
+        this.email = email;
         this.address = address;
-        this.createdOn = LocalDateTime.now();
     }
 
-    public void display() {
-
-        System.out.println("\n===== Contact Details =====");
-        System.out.println("Contact ID : " + contactId);
-        System.out.println("Name       : " + name);
-
-        System.out.print("Phone No   : ");
-        for (PhoneNumber phone : phoneNumbers) {
-            System.out.print(phone.getNumber() + " ");
-        }
-
-        System.out.print("\nEmail      : ");
-        for (Email email : emailAddresses) {
-            System.out.print(email.getEmail() + " ");
-        }
-
-        System.out.println("\nAddress    : " + address);
-        System.out.println("Created On : " + createdOn);
-    }
-}
-
-//================== Person Contact ==================
-class Person extends Contact {
-
-    public Person(String name, List<PhoneNumber> phoneNumbers,
-                  List<Email> emailAddresses, String address) {
-
-        super(name, phoneNumbers, emailAddresses, address);
-    }
-}
-
-//================== Organization Contact ==================
-class Organization extends Contact {
-
-    public Organization(String name, List<PhoneNumber> phoneNumbers,
-                        List<Email> emailAddresses, String address) {
-
-        super(name, phoneNumbers, emailAddresses, address);
-    }
-}
-
-//================== Builder Pattern ==================
-class ContactBuilder {
-
-    private String name;
-    private List<PhoneNumber> phoneNumbers = new ArrayList<>();
-    private List<Email> emailAddresses = new ArrayList<>();
-    private String address;
-
-    public ContactBuilder setName(String name) {
-        this.name = name;
-        return this;
-    }
-
-    public ContactBuilder addPhoneNumber(String phone) {
-        phoneNumbers.add(new PhoneNumber(phone));
-        return this;
-    }
-
-    public ContactBuilder addEmail(String email) {
-        emailAddresses.add(new Email(email));
-        return this;
-    }
-
-    public ContactBuilder setAddress(String address) {
-        this.address = address;
-        return this;
-    }
-
-    public Contact build() {
-        return new Contact(name, phoneNumbers, emailAddresses, address);
+    public UUID getContactId() {
+        return contactId;
     }
 
     public String getName() {
         return name;
     }
 
-    public List<PhoneNumber> getPhoneNumbers() {
-        return phoneNumbers;
+    public String getPhoneNumber() {
+        return phoneNumber;
     }
 
-    public List<Email> getEmailAddresses() {
-        return emailAddresses;
+    public Optional<String> getEmail() {
+        return Optional.ofNullable(email);
     }
 
-    public String getAddress() {
-        return address;
+    public Optional<String> getAddress() {
+        return Optional.ofNullable(address);
+    }
+
+    @Override
+    public String toString() {
+
+        return String.format(
+                "Contact ID : %s%nName       : %s%nPhone      : %s%nEmail      : %s%nAddress    : %s",
+                contactId,
+                name,
+                phoneNumber,
+                getEmail().orElse("Not Available"),
+                getAddress().orElse("Not Available"));
     }
 }
 
-//================== Factory Pattern ==================
-class ContactFactory {
+//================== Immutable View Object ==================
+final class ContactView {
 
-    public static Contact createContact(String type, ContactBuilder builder) {
+    private final Contact contact;
 
-        if (type.equalsIgnoreCase("Organization")) {
+    public ContactView(Contact contact) {
+        this.contact = contact;
+    }
 
-            return new Organization(
-                    builder.getName(),
-                    builder.getPhoneNumbers(),
-                    builder.getEmailAddresses(),
-                    builder.getAddress());
-        }
+    public Contact getContact() {
+        return contact;
+    }
+}
 
-        return new Person(
-                builder.getName(),
-                builder.getPhoneNumbers(),
-                builder.getEmailAddresses(),
-                builder.getAddress());
+//================== Decorator Interface ==================
+interface ContactDisplay {
+
+    void display();
+}
+
+//================== Basic Display ==================
+class BasicDisplay implements ContactDisplay {
+
+    private ContactView contactView;
+
+    public BasicDisplay(ContactView contactView) {
+        this.contactView = contactView;
+    }
+
+    @Override
+    public void display() {
+        System.out.println(contactView.getContact());
+    }
+}
+
+//================== Decorator Class ==================
+abstract class ContactDecorator implements ContactDisplay {
+
+    protected ContactDisplay contactDisplay;
+
+    public ContactDecorator(ContactDisplay contactDisplay) {
+        this.contactDisplay = contactDisplay;
+    }
+}
+
+//================== Formatted Display ==================
+class FormattedDisplay extends ContactDecorator {
+
+    public FormattedDisplay(ContactDisplay contactDisplay) {
+        super(contactDisplay);
+    }
+
+    @Override
+    public void display() {
+
+        System.out.println("=================================");
+        System.out.println("      CONTACT INFORMATION");
+        System.out.println("=================================");
+
+        contactDisplay.display();
+
+        System.out.println("=================================");
     }
 }
 
@@ -178,55 +129,17 @@ public class UserRegistration {
 
     public static void main(String[] args) {
 
-        Scanner sc = new Scanner(System.in);
+        Contact contact = new Contact(
+                "Nandini",
+                "9876543210",
+                "nandini@gmail.com",
+                "Bangalore");
 
-        try {
+        ContactView contactView = new ContactView(contact);
 
-            System.out.println("===== Create Contact =====");
+        ContactDisplay display =
+                new FormattedDisplay(new BasicDisplay(contactView));
 
-            System.out.print("Enter Contact Type (Person/Organization) : ");
-            String type = sc.nextLine();
-
-            System.out.print("Enter Name : ");
-            String name = sc.nextLine();
-
-            ContactBuilder builder = new ContactBuilder();
-            builder.setName(name);
-
-            System.out.print("How Many Phone Numbers? : ");
-            int phoneCount = sc.nextInt();
-            sc.nextLine();
-
-            for (int i = 1; i <= phoneCount; i++) {
-
-                System.out.print("Enter Phone " + i + " : ");
-                builder.addPhoneNumber(sc.nextLine());
-            }
-
-            System.out.print("How Many Email Addresses? : ");
-            int emailCount = sc.nextInt();
-            sc.nextLine();
-
-            for (int i = 1; i <= emailCount; i++) {
-
-                System.out.print("Enter Email " + i + " : ");
-                builder.addEmail(sc.nextLine());
-            }
-
-            System.out.print("Enter Address (Optional) : ");
-            builder.setAddress(sc.nextLine());
-
-            Contact contact = ContactFactory.createContact(type, builder);
-
-            System.out.println("\nContact Created Successfully.");
-
-            contact.display();
-
-        } catch (Exception e) {
-
-            System.out.println("Error : " + e.getMessage());
-        }
-
-        sc.close();
+        display.display();
     }
 }
