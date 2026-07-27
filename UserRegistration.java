@@ -1,121 +1,150 @@
 package mycontactapp;
+
 /*
- * UC-02: User Authentication
- * Description: Authenticates a registered user using different
- * authentication methods and maintains the user session.
+ * UC-03: Profile Management
+ * Description: Allows a logged-in user to update profile information,
+ * change password, and manage preferences using Command Pattern.
  */
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Optional;
 import java.util.Scanner;
 
 //================== User Class ==================
 class User {
 
+    private String name;
     private String email;
     private String password;
+    private String preference;
 
-    public User(String email, String password) {
+    public User(String name, String email, String password, String preference) {
+        this.name = name;
         this.email = email;
         this.password = PasswordUtil.hashPassword(password);
+        this.preference = preference;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+
+        if (!name.trim().isEmpty()) {
+            this.name = name;
+        }
     }
 
     public String getEmail() {
         return email;
     }
 
-    public String getPassword() {
-        return password;
+    public void setEmail(String email) {
+
+        if (email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+            this.email = email;
+        } else {
+            System.out.println("Invalid Email.");
+        }
+    }
+
+    public void setPassword(String password) {
+
+        if (password.length() >= 6) {
+            this.password = PasswordUtil.hashPassword(password);
+        } else {
+            System.out.println("Password should contain at least 6 characters.");
+        }
+    }
+
+    public void setPreference(String preference) {
+        this.preference = preference;
+    }
+
+    public void displayProfile() {
+
+        System.out.println("\n===== User Profile =====");
+        System.out.println("Name       : " + name);
+        System.out.println("Email      : " + email);
+        System.out.println("Preference : " + preference);
     }
 }
 
-//================== Authentication Interface ==================
-interface Authentication {
+//================== Command Interface ==================
+interface ProfileCommand {
 
-    Optional<User> login(String email, String password);
+    void execute();
 }
 
-//================== Basic Authentication ==================
-class BasicAuth implements Authentication {
+//================== Update Profile Command ==================
+class UpdateProfileCommand implements ProfileCommand {
 
     private User user;
+    private String name;
+    private String email;
 
-    public BasicAuth(User user) {
+    public UpdateProfileCommand(User user, String name, String email) {
         this.user = user;
+        this.name = name;
+        this.email = email;
     }
 
     @Override
-    public Optional<User> login(String email, String password) {
+    public void execute() {
 
-        String hashedPassword = PasswordUtil.hashPassword(password);
+        user.setName(name);
+        user.setEmail(email);
 
-        if (user.getEmail().equals(email)
-                && user.getPassword().equals(hashedPassword)) {
-
-            return Optional.of(user);
-        }
-
-        return Optional.empty();
+        System.out.println("Profile Updated Successfully.");
     }
 }
 
-//================== OAuth Authentication ==================
-class OAuth implements Authentication {
+//================== Change Password Command ==================
+class ChangePasswordCommand implements ProfileCommand {
+
+    private User user;
+    private String password;
+
+    public ChangePasswordCommand(User user, String password) {
+        this.user = user;
+        this.password = password;
+    }
 
     @Override
-    public Optional<User> login(String email, String password) {
+    public void execute() {
 
-        System.out.println("OAuth Authentication Successful.");
+        user.setPassword(password);
 
-        User user = new User(email, password);
-
-        return Optional.of(user);
+        System.out.println("Password Updated Successfully.");
     }
 }
 
-//================== Strategy Pattern ==================
-class AuthenticationContext {
+//================== Update Preference Command ==================
+class UpdatePreferenceCommand implements ProfileCommand {
 
-    private Authentication authentication;
+    private User user;
+    private String preference;
 
-    public AuthenticationContext(Authentication authentication) {
-        this.authentication = authentication;
+    public UpdatePreferenceCommand(User user, String preference) {
+        this.user = user;
+        this.preference = preference;
     }
 
-    public Optional<User> authenticate(String email, String password) {
-        return authentication.login(email, password);
+    @Override
+    public void execute() {
+
+        user.setPreference(preference);
+
+        System.out.println("Preference Updated Successfully.");
     }
 }
 
-//================== Singleton Session Manager ==================
-class SessionManager {
+//================== Command Invoker ==================
+class ProfileManager {
 
-    private static SessionManager sessionManager;
-    private User currentUser;
-
-    private SessionManager() {
-    }
-
-    public static SessionManager getInstance() {
-
-        if (sessionManager == null) {
-            sessionManager = new SessionManager();
-        }
-
-        return sessionManager;
-    }
-
-    public void createSession(User user) {
-        currentUser = user;
-    }
-
-    public User getCurrentUser() {
-        return currentUser;
-    }
-
-    public void logout() {
-        currentUser = null;
+    public void executeCommand(ProfileCommand command) {
+        command.execute();
     }
 }
 
@@ -152,51 +181,65 @@ public class UserRegistration {
 
         Scanner sc = new Scanner(System.in);
 
-        // Registered user (Dummy Data)
-        User registeredUser = new User("nandini@gmail.com", "admin123");
+        User user = new User(
+                "Nandini",
+                "nandini@gmail.com",
+                "admin123",
+                "Dark Theme");
+
+        ProfileManager manager = new ProfileManager();
 
         try {
 
-            System.out.println("===== User Authentication =====");
+            System.out.println("===== Profile Management =====");
+            System.out.println("1. Update Profile");
+            System.out.println("2. Change Password");
+            System.out.println("3. Update Preference");
 
-            System.out.print("Enter Email : ");
-            String email = sc.nextLine();
-
-            System.out.print("Enter Password : ");
-            String password = sc.nextLine();
-
-            System.out.println("\nSelect Authentication Method");
-            System.out.println("1. Basic Authentication");
-            System.out.println("2. OAuth Authentication");
             System.out.print("Enter Choice : ");
-
             int choice = sc.nextInt();
+            sc.nextLine();
 
-            Authentication authentication;
+            switch (choice) {
 
-            if (choice == 2) {
-                authentication = new OAuth();
-            } else {
-                authentication = new BasicAuth(registeredUser);
+                case 1:
+
+                    System.out.print("Enter New Name : ");
+                    String name = sc.nextLine();
+
+                    System.out.print("Enter New Email : ");
+                    String email = sc.nextLine();
+
+                    manager.executeCommand(
+                            new UpdateProfileCommand(user, name, email));
+
+                    break;
+
+                case 2:
+
+                    System.out.print("Enter New Password : ");
+                    String password = sc.nextLine();
+
+                    manager.executeCommand(
+                            new ChangePasswordCommand(user, password));
+
+                    break;
+
+                case 3:
+
+                    System.out.print("Enter Preference : ");
+                    String preference = sc.nextLine();
+
+                    manager.executeCommand(
+                            new UpdatePreferenceCommand(user, preference));
+
+                    break;
+
+                default:
+                    System.out.println("Invalid Choice.");
             }
 
-            AuthenticationContext context = new AuthenticationContext(authentication);
-
-            Optional<User> user = context.authenticate(email, password);
-
-            if (user.isPresent()) {
-
-                SessionManager session = SessionManager.getInstance();
-
-                session.createSession(user.get());
-
-                System.out.println("\nLogin Successful.");
-                System.out.println("Logged in User : " + session.getCurrentUser().getEmail());
-
-            } else {
-
-                System.out.println("\nInvalid Email or Password.");
-            }
+            user.displayProfile();
 
         } catch (Exception e) {
 
