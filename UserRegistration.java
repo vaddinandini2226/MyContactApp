@@ -1,179 +1,102 @@
 package mycontactapp;
 
 /*
- * UC-06: Update Contact
- * Description: Updates existing contact information using
- * Command and Memento patterns with validation.
+ * UC-07: Delete Contact
+ * Description: Deletes a contact after user confirmation using
+ * Observer Pattern and demonstrates soft delete and hard delete.
  */
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+
+//================== Observer Interface ==================
+interface Observer {
+
+    void update(String message);
+}
+
+//================== Activity Logger ==================
+class ActivityLogger implements Observer {
+
+    @Override
+    public void update(String message) {
+        System.out.println("Logger : " + message);
+    }
+}
+
+//================== Notification Service ==================
+class NotificationService implements Observer {
+
+    @Override
+    public void update(String message) {
+        System.out.println("Notification : " + message);
+    }
+}
 
 //================== Contact Class ==================
 class Contact {
 
+    private int contactId;
     private String name;
     private String phoneNumber;
-    private String email;
+    private boolean deleted;
 
-    public Contact(String name, String phoneNumber, String email) {
+    private List<Observer> observers = new ArrayList<>();
+
+    public Contact(int contactId, String name, String phoneNumber) {
+        this.contactId = contactId;
         this.name = name;
         this.phoneNumber = phoneNumber;
-        this.email = email;
+        this.deleted = false;
     }
 
-    // Copy Constructor (Deep Copy)
-    public Contact(Contact contact) {
-        this.name = contact.name;
-        this.phoneNumber = contact.phoneNumber;
-        this.email = contact.email;
+    public int getContactId() {
+        return contactId;
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public boolean isDeleted() {
+        return deleted;
+    }
 
-        if (!name.trim().isEmpty()) {
-            this.name = name;
-        } else {
-            System.out.println("Invalid Name.");
+    public void addObserver(Observer observer) {
+        observers.add(observer);
+    }
+
+    private void notifyObservers(String message) {
+
+        for (Observer observer : observers) {
+            observer.update(message);
         }
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
+    // Soft Delete
+    public void softDelete() {
+
+        deleted = true;
+
+        notifyObservers("Contact '" + name + "' moved to recycle bin.");
     }
 
-    public void setPhoneNumber(String phoneNumber) {
+    // Hard Delete
+    public void hardDelete(List<Contact> contacts) {
 
-        if (phoneNumber.matches("\\d{10}")) {
-            this.phoneNumber = phoneNumber;
-        } else {
-            System.out.println("Invalid Phone Number.");
-        }
-    }
+        contacts.remove(this);
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-
-        if (email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
-            this.email = email;
-        } else {
-            System.out.println("Invalid Email.");
-        }
+        notifyObservers("Contact '" + name + "' permanently deleted.");
     }
 
     @Override
     public String toString() {
 
-        return "\n===== Contact Details ====="
-                + "\nName  : " + name
-                + "\nPhone : " + phoneNumber
-                + "\nEmail : " + email;
-    }
-}
-
-//================== Memento ==================
-class ContactMemento {
-
-    private Contact contact;
-
-    public ContactMemento(Contact contact) {
-
-        // Defensive Copy
-        this.contact = new Contact(contact);
-    }
-
-    public Contact getSavedContact() {
-
-        // Defensive Copy
-        return new Contact(contact);
-    }
-}
-
-//================== CareTaker ==================
-class ContactHistory {
-
-    private ContactMemento memento;
-
-    public void save(Contact contact) {
-        memento = new ContactMemento(contact);
-    }
-
-    public Contact restore() {
-        return memento.getSavedContact();
-    }
-}
-
-//================== Command Interface ==================
-interface Command {
-
-    void execute();
-
-    void undo();
-}
-
-//================== Update Command ==================
-class UpdateContactCommand implements Command {
-
-    private Contact contact;
-    private ContactHistory history;
-
-    private String name;
-    private String phone;
-    private String email;
-
-    public UpdateContactCommand(Contact contact,
-                                ContactHistory history,
-                                String name,
-                                String phone,
-                                String email) {
-
-        this.contact = contact;
-        this.history = history;
-        this.name = name;
-        this.phone = phone;
-        this.email = email;
-    }
-
-    @Override
-    public void execute() {
-
-        history.save(contact);
-
-        contact.setName(name);
-        contact.setPhoneNumber(phone);
-        contact.setEmail(email);
-
-        System.out.println("\nContact Updated Successfully.");
-    }
-
-    @Override
-    public void undo() {
-
-        Contact oldContact = history.restore();
-
-        contact.setName(oldContact.getName());
-        contact.setPhoneNumber(oldContact.getPhoneNumber());
-        contact.setEmail(oldContact.getEmail());
-
-        System.out.println("\nUndo Successful.");
-    }
-}
-
-//================== Command Manager ==================
-class ContactManager {
-
-    public void executeCommand(Command command) {
-        command.execute();
-    }
-
-    public void undoCommand(Command command) {
-        command.undo();
+        return "\nContact ID : " + contactId
+                + "\nName       : " + name
+                + "\nPhone      : " + phoneNumber
+                + "\nDeleted    : " + deleted;
     }
 }
 
@@ -184,49 +107,54 @@ public class UserRegistration {
 
         Scanner sc = new Scanner(System.in);
 
-        Contact contact = new Contact(
-                "Nandini",
-                "9876543210",
-                "nandini@gmail.com");
+        List<Contact> contacts = new ArrayList<>();
 
-        ContactHistory history = new ContactHistory();
-        ContactManager manager = new ContactManager();
+        Contact contact = new Contact(
+                101,
+                "Nandini",
+                "9876543210");
+
+        contact.addObserver(new ActivityLogger());
+        contact.addObserver(new NotificationService());
+
+        contacts.add(contact);
 
         try {
 
-            System.out.println(contact);
-
-            System.out.println("\n===== Update Contact =====");
-
-            System.out.print("Enter New Name : ");
-            String name = sc.nextLine();
-
-            System.out.print("Enter New Phone : ");
-            String phone = sc.nextLine();
-
-            System.out.print("Enter New Email : ");
-            String email = sc.nextLine();
-
-            UpdateContactCommand command =
-                    new UpdateContactCommand(
-                            contact,
-                            history,
-                            name,
-                            phone,
-                            email);
-
-            manager.executeCommand(command);
+            System.out.println("===== Delete Contact =====");
 
             System.out.println(contact);
 
-            System.out.print("\nUndo Changes? (yes/no) : ");
-            String choice = sc.nextLine();
+            System.out.print("\nAre you sure you want to delete this contact? (yes/no) : ");
+            String confirm = sc.nextLine();
 
-            if (choice.equalsIgnoreCase("yes")) {
+            if (confirm.equalsIgnoreCase("yes")) {
 
-                manager.undoCommand(command);
+                System.out.print("1. Soft Delete\n2. Hard Delete\nEnter Choice : ");
+                int choice = Integer.parseInt(sc.nextLine());
 
-                System.out.println(contact);
+                if (choice == 1) {
+
+                    contact.softDelete();
+
+                    System.out.println("\nContact Soft Deleted Successfully.");
+                    System.out.println(contact);
+
+                } else if (choice == 2) {
+
+                    contact.hardDelete(contacts);
+
+                    System.out.println("\nContact Hard Deleted Successfully.");
+                    System.out.println("Remaining Contacts : " + contacts.size());
+
+                } else {
+
+                    System.out.println("Invalid Choice.");
+                }
+
+            } else {
+
+                System.out.println("Delete Operation Cancelled.");
             }
 
         } catch (Exception e) {
