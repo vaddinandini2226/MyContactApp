@@ -1,38 +1,37 @@
 package mycontactapp;
 
 /*
- * UC-11: Contact Tags
- * Description: Creates custom tags and assigns them to contacts
- * using Flyweight Pattern for shared tag objects.
+ * UC-12: Assign Tags to Contact
+ * Description: Assigns one or more tags to a contact using
+ * Observer Pattern and maintains bidirectional relationship.
  */
 
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
 
-//================== Predefined Tags ==================
-enum PredefinedTag {
-    FAMILY,
-    FRIENDS,
-    WORK
+//================== Observer Interface ==================
+interface Observer {
+
+    void update(String message);
+}
+
+//================== UI Observer ==================
+class ContactUI implements Observer {
+
+    @Override
+    public void update(String message) {
+        System.out.println("UI Updated : " + message);
+    }
 }
 
 //================== Tag Class ==================
 class Tag {
 
     private String tagName;
+    private Set<Contact> contacts = new HashSet<>();
 
     public Tag(String tagName) {
-
-        if (tagName == null || tagName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Tag cannot be empty.");
-        }
-
         this.tagName = tagName;
     }
 
@@ -40,23 +39,12 @@ class Tag {
         return tagName;
     }
 
-    @Override
-    public boolean equals(Object obj) {
-
-        if (this == obj)
-            return true;
-
-        if (!(obj instanceof Tag))
-            return false;
-
-        Tag tag = (Tag) obj;
-
-        return tagName.equalsIgnoreCase(tag.tagName);
+    public void addContact(Contact contact) {
+        contacts.add(contact);
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(tagName.toLowerCase());
+    public void removeContact(Contact contact) {
+        contacts.remove(contact);
     }
 
     @Override
@@ -65,20 +53,23 @@ class Tag {
     }
 }
 
-//================== Flyweight Factory ==================
-class TagFactory {
+//================== Association Class ==================
+class ContactTag {
 
-    private static HashMap<String, Tag> tags = new HashMap<>();
+    private Contact contact;
+    private Tag tag;
 
-    public static Tag getTag(String tagName) {
+    public ContactTag(Contact contact, Tag tag) {
+        this.contact = contact;
+        this.tag = tag;
+    }
 
-        String key = tagName.toLowerCase();
+    public Contact getContact() {
+        return contact;
+    }
 
-        if (!tags.containsKey(key)) {
-            tags.put(key, new Tag(tagName));
-        }
-
-        return tags.get(key);
+    public Tag getTag() {
+        return tag;
     }
 }
 
@@ -87,19 +78,45 @@ class Contact {
 
     private String name;
     private Set<Tag> tags = new HashSet<>();
+    private Set<Observer> observers = new HashSet<>();
 
     public Contact(String name) {
         this.name = name;
     }
 
+    public void addObserver(Observer observer) {
+        observers.add(observer);
+    }
+
+    private void notifyObservers(String message) {
+
+        for (Observer observer : observers) {
+            observer.update(message);
+        }
+    }
+
     public void addTag(Tag tag) {
+
         tags.add(tag);
+        tag.addContact(this);
+
+        new ContactTag(this, tag);
+
+        notifyObservers("Tag '" + tag.getTagName() + "' added to " + name);
+    }
+
+    public void removeTag(Tag tag) {
+
+        tags.remove(tag);
+        tag.removeContact(this);
+
+        notifyObservers("Tag '" + tag.getTagName() + "' removed from " + name);
     }
 
     public void display() {
 
-        System.out.println("\nContact Name : " + name);
-        System.out.println("Tags         : " + tags);
+        System.out.println("\nContact : " + name);
+        System.out.println("Tags    : " + tags);
     }
 }
 
@@ -112,16 +129,13 @@ public class UserRegistration {
 
         Contact contact = new Contact("Nandini");
 
+        contact.addObserver(new ContactUI());
+
         try {
 
-            System.out.println("===== Contact Tags =====");
+            System.out.println("===== Assign Tags =====");
 
-            EnumSet<PredefinedTag> predefinedTags =
-                    EnumSet.allOf(PredefinedTag.class);
-
-            System.out.println("Predefined Tags : " + predefinedTags);
-
-            System.out.print("\nHow Many Custom Tags? : ");
+            System.out.print("How Many Tags? : ");
             int n = sc.nextInt();
             sc.nextLine();
 
@@ -129,14 +143,17 @@ public class UserRegistration {
 
                 System.out.print("Enter Tag " + i + " : ");
 
-                String tagName = sc.nextLine();
-
-                Tag tag = TagFactory.getTag(tagName);
+                Tag tag = new Tag(sc.nextLine());
 
                 contact.addTag(tag);
             }
 
-            System.out.println("\nTags Assigned Successfully.");
+            contact.display();
+
+            System.out.print("\nEnter Tag To Remove : ");
+            Tag removeTag = new Tag(sc.nextLine());
+
+            contact.removeTag(removeTag);
 
             contact.display();
 
