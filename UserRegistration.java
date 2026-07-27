@@ -1,176 +1,175 @@
 package mycontactapp;
 
 /*
- * UC-03: Profile Management
- * Description: Allows a logged-in user to update profile information,
- * change password, and manage preferences using Command Pattern.
+ * UC-04: Create Contact
+ * Description: Creates a new contact with multiple phone numbers,
+ * email addresses, and optional fields using Builder and Factory patterns.
  */
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+import java.util.UUID;
 
-//================== User Class ==================
-class User {
+//================== Phone Number ==================
+class PhoneNumber {
+
+    private String number;
+
+    public PhoneNumber(String number) {
+        this.number = number;
+    }
+
+    public String getNumber() {
+        return number;
+    }
+}
+
+//================== Email ==================
+class Email {
+
+    private String email;
+
+    public Email(String email) {
+        this.email = email;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+}
+
+//================== Contact Class ==================
+class Contact {
+
+    private UUID contactId;
+    private String name;
+    private List<PhoneNumber> phoneNumbers;
+    private List<Email> emailAddresses;
+    private String address;
+    private LocalDateTime createdOn;
+
+    public Contact(String name, List<PhoneNumber> phoneNumbers,
+                   List<Email> emailAddresses, String address) {
+
+        this.contactId = UUID.randomUUID();
+        this.name = name;
+        this.phoneNumbers = phoneNumbers;
+        this.emailAddresses = emailAddresses;
+        this.address = address;
+        this.createdOn = LocalDateTime.now();
+    }
+
+    public void display() {
+
+        System.out.println("\n===== Contact Details =====");
+        System.out.println("Contact ID : " + contactId);
+        System.out.println("Name       : " + name);
+
+        System.out.print("Phone No   : ");
+        for (PhoneNumber phone : phoneNumbers) {
+            System.out.print(phone.getNumber() + " ");
+        }
+
+        System.out.print("\nEmail      : ");
+        for (Email email : emailAddresses) {
+            System.out.print(email.getEmail() + " ");
+        }
+
+        System.out.println("\nAddress    : " + address);
+        System.out.println("Created On : " + createdOn);
+    }
+}
+
+//================== Person Contact ==================
+class Person extends Contact {
+
+    public Person(String name, List<PhoneNumber> phoneNumbers,
+                  List<Email> emailAddresses, String address) {
+
+        super(name, phoneNumbers, emailAddresses, address);
+    }
+}
+
+//================== Organization Contact ==================
+class Organization extends Contact {
+
+    public Organization(String name, List<PhoneNumber> phoneNumbers,
+                        List<Email> emailAddresses, String address) {
+
+        super(name, phoneNumbers, emailAddresses, address);
+    }
+}
+
+//================== Builder Pattern ==================
+class ContactBuilder {
 
     private String name;
-    private String email;
-    private String password;
-    private String preference;
+    private List<PhoneNumber> phoneNumbers = new ArrayList<>();
+    private List<Email> emailAddresses = new ArrayList<>();
+    private String address;
 
-    public User(String name, String email, String password, String preference) {
+    public ContactBuilder setName(String name) {
         this.name = name;
-        this.email = email;
-        this.password = PasswordUtil.hashPassword(password);
-        this.preference = preference;
+        return this;
+    }
+
+    public ContactBuilder addPhoneNumber(String phone) {
+        phoneNumbers.add(new PhoneNumber(phone));
+        return this;
+    }
+
+    public ContactBuilder addEmail(String email) {
+        emailAddresses.add(new Email(email));
+        return this;
+    }
+
+    public ContactBuilder setAddress(String address) {
+        this.address = address;
+        return this;
+    }
+
+    public Contact build() {
+        return new Contact(name, phoneNumbers, emailAddresses, address);
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public List<PhoneNumber> getPhoneNumbers() {
+        return phoneNumbers;
+    }
 
-        if (!name.trim().isEmpty()) {
-            this.name = name;
+    public List<Email> getEmailAddresses() {
+        return emailAddresses;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+}
+
+//================== Factory Pattern ==================
+class ContactFactory {
+
+    public static Contact createContact(String type, ContactBuilder builder) {
+
+        if (type.equalsIgnoreCase("Organization")) {
+
+            return new Organization(
+                    builder.getName(),
+                    builder.getPhoneNumbers(),
+                    builder.getEmailAddresses(),
+                    builder.getAddress());
         }
-    }
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-
-        if (email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
-            this.email = email;
-        } else {
-            System.out.println("Invalid Email.");
-        }
-    }
-
-    public void setPassword(String password) {
-
-        if (password.length() >= 6) {
-            this.password = PasswordUtil.hashPassword(password);
-        } else {
-            System.out.println("Password should contain at least 6 characters.");
-        }
-    }
-
-    public void setPreference(String preference) {
-        this.preference = preference;
-    }
-
-    public void displayProfile() {
-
-        System.out.println("\n===== User Profile =====");
-        System.out.println("Name       : " + name);
-        System.out.println("Email      : " + email);
-        System.out.println("Preference : " + preference);
-    }
-}
-
-//================== Command Interface ==================
-interface ProfileCommand {
-
-    void execute();
-}
-
-//================== Update Profile Command ==================
-class UpdateProfileCommand implements ProfileCommand {
-
-    private User user;
-    private String name;
-    private String email;
-
-    public UpdateProfileCommand(User user, String name, String email) {
-        this.user = user;
-        this.name = name;
-        this.email = email;
-    }
-
-    @Override
-    public void execute() {
-
-        user.setName(name);
-        user.setEmail(email);
-
-        System.out.println("Profile Updated Successfully.");
-    }
-}
-
-//================== Change Password Command ==================
-class ChangePasswordCommand implements ProfileCommand {
-
-    private User user;
-    private String password;
-
-    public ChangePasswordCommand(User user, String password) {
-        this.user = user;
-        this.password = password;
-    }
-
-    @Override
-    public void execute() {
-
-        user.setPassword(password);
-
-        System.out.println("Password Updated Successfully.");
-    }
-}
-
-//================== Update Preference Command ==================
-class UpdatePreferenceCommand implements ProfileCommand {
-
-    private User user;
-    private String preference;
-
-    public UpdatePreferenceCommand(User user, String preference) {
-        this.user = user;
-        this.preference = preference;
-    }
-
-    @Override
-    public void execute() {
-
-        user.setPreference(preference);
-
-        System.out.println("Preference Updated Successfully.");
-    }
-}
-
-//================== Command Invoker ==================
-class ProfileManager {
-
-    public void executeCommand(ProfileCommand command) {
-        command.execute();
-    }
-}
-
-//================== Password Utility ==================
-class PasswordUtil {
-
-    public static String hashPassword(String password) {
-
-        try {
-
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-
-            byte[] hash = md.digest(password.getBytes());
-
-            StringBuilder sb = new StringBuilder();
-
-            for (byte b : hash) {
-                sb.append(String.format("%02x", b));
-            }
-
-            return sb.toString();
-
-        } catch (NoSuchAlgorithmException e) {
-
-            return password;
-        }
+        return new Person(
+                builder.getName(),
+                builder.getPhoneNumbers(),
+                builder.getEmailAddresses(),
+                builder.getAddress());
     }
 }
 
@@ -181,65 +180,47 @@ public class UserRegistration {
 
         Scanner sc = new Scanner(System.in);
 
-        User user = new User(
-                "Nandini",
-                "nandini@gmail.com",
-                "admin123",
-                "Dark Theme");
-
-        ProfileManager manager = new ProfileManager();
-
         try {
 
-            System.out.println("===== Profile Management =====");
-            System.out.println("1. Update Profile");
-            System.out.println("2. Change Password");
-            System.out.println("3. Update Preference");
+            System.out.println("===== Create Contact =====");
 
-            System.out.print("Enter Choice : ");
-            int choice = sc.nextInt();
+            System.out.print("Enter Contact Type (Person/Organization) : ");
+            String type = sc.nextLine();
+
+            System.out.print("Enter Name : ");
+            String name = sc.nextLine();
+
+            ContactBuilder builder = new ContactBuilder();
+            builder.setName(name);
+
+            System.out.print("How Many Phone Numbers? : ");
+            int phoneCount = sc.nextInt();
             sc.nextLine();
 
-            switch (choice) {
+            for (int i = 1; i <= phoneCount; i++) {
 
-                case 1:
-
-                    System.out.print("Enter New Name : ");
-                    String name = sc.nextLine();
-
-                    System.out.print("Enter New Email : ");
-                    String email = sc.nextLine();
-
-                    manager.executeCommand(
-                            new UpdateProfileCommand(user, name, email));
-
-                    break;
-
-                case 2:
-
-                    System.out.print("Enter New Password : ");
-                    String password = sc.nextLine();
-
-                    manager.executeCommand(
-                            new ChangePasswordCommand(user, password));
-
-                    break;
-
-                case 3:
-
-                    System.out.print("Enter Preference : ");
-                    String preference = sc.nextLine();
-
-                    manager.executeCommand(
-                            new UpdatePreferenceCommand(user, preference));
-
-                    break;
-
-                default:
-                    System.out.println("Invalid Choice.");
+                System.out.print("Enter Phone " + i + " : ");
+                builder.addPhoneNumber(sc.nextLine());
             }
 
-            user.displayProfile();
+            System.out.print("How Many Email Addresses? : ");
+            int emailCount = sc.nextInt();
+            sc.nextLine();
+
+            for (int i = 1; i <= emailCount; i++) {
+
+                System.out.print("Enter Email " + i + " : ");
+                builder.addEmail(sc.nextLine());
+            }
+
+            System.out.print("Enter Address (Optional) : ");
+            builder.setAddress(sc.nextLine());
+
+            Contact contact = ContactFactory.createContact(type, builder);
+
+            System.out.println("\nContact Created Successfully.");
+
+            contact.display();
 
         } catch (Exception e) {
 
