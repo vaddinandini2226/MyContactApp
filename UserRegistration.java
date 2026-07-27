@@ -1,126 +1,179 @@
 package mycontactapp;
 
 /*
- * UC-05: View Contact
- * Description: Displays complete information of a contact using
- * Decorator Pattern with formatted output.
+ * UC-06: Update Contact
+ * Description: Updates existing contact information using
+ * Command and Memento patterns with validation.
  */
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.Scanner;
 
 //================== Contact Class ==================
 class Contact {
 
-    private UUID contactId;
     private String name;
     private String phoneNumber;
     private String email;
-    private String address;
 
-    public Contact(String name, String phoneNumber, String email, String address) {
-        this.contactId = UUID.randomUUID();
+    public Contact(String name, String phoneNumber, String email) {
         this.name = name;
         this.phoneNumber = phoneNumber;
         this.email = email;
-        this.address = address;
     }
 
-    public UUID getContactId() {
-        return contactId;
+    // Copy Constructor (Deep Copy)
+    public Contact(Contact contact) {
+        this.name = contact.name;
+        this.phoneNumber = contact.phoneNumber;
+        this.email = contact.email;
     }
 
     public String getName() {
         return name;
     }
 
+    public void setName(String name) {
+
+        if (!name.trim().isEmpty()) {
+            this.name = name;
+        } else {
+            System.out.println("Invalid Name.");
+        }
+    }
+
     public String getPhoneNumber() {
         return phoneNumber;
     }
 
-    public Optional<String> getEmail() {
-        return Optional.ofNullable(email);
+    public void setPhoneNumber(String phoneNumber) {
+
+        if (phoneNumber.matches("\\d{10}")) {
+            this.phoneNumber = phoneNumber;
+        } else {
+            System.out.println("Invalid Phone Number.");
+        }
     }
 
-    public Optional<String> getAddress() {
-        return Optional.ofNullable(address);
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+
+        if (email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+            this.email = email;
+        } else {
+            System.out.println("Invalid Email.");
+        }
     }
 
     @Override
     public String toString() {
 
-        return String.format(
-                "Contact ID : %s%nName       : %s%nPhone      : %s%nEmail      : %s%nAddress    : %s",
-                contactId,
-                name,
-                phoneNumber,
-                getEmail().orElse("Not Available"),
-                getAddress().orElse("Not Available"));
+        return "\n===== Contact Details ====="
+                + "\nName  : " + name
+                + "\nPhone : " + phoneNumber
+                + "\nEmail : " + email;
     }
 }
 
-//================== Immutable View Object ==================
-final class ContactView {
+//================== Memento ==================
+class ContactMemento {
 
-    private final Contact contact;
+    private Contact contact;
 
-    public ContactView(Contact contact) {
+    public ContactMemento(Contact contact) {
+
+        // Defensive Copy
+        this.contact = new Contact(contact);
+    }
+
+    public Contact getSavedContact() {
+
+        // Defensive Copy
+        return new Contact(contact);
+    }
+}
+
+//================== CareTaker ==================
+class ContactHistory {
+
+    private ContactMemento memento;
+
+    public void save(Contact contact) {
+        memento = new ContactMemento(contact);
+    }
+
+    public Contact restore() {
+        return memento.getSavedContact();
+    }
+}
+
+//================== Command Interface ==================
+interface Command {
+
+    void execute();
+
+    void undo();
+}
+
+//================== Update Command ==================
+class UpdateContactCommand implements Command {
+
+    private Contact contact;
+    private ContactHistory history;
+
+    private String name;
+    private String phone;
+    private String email;
+
+    public UpdateContactCommand(Contact contact,
+                                ContactHistory history,
+                                String name,
+                                String phone,
+                                String email) {
+
         this.contact = contact;
-    }
-
-    public Contact getContact() {
-        return contact;
-    }
-}
-
-//================== Decorator Interface ==================
-interface ContactDisplay {
-
-    void display();
-}
-
-//================== Basic Display ==================
-class BasicDisplay implements ContactDisplay {
-
-    private ContactView contactView;
-
-    public BasicDisplay(ContactView contactView) {
-        this.contactView = contactView;
+        this.history = history;
+        this.name = name;
+        this.phone = phone;
+        this.email = email;
     }
 
     @Override
-    public void display() {
-        System.out.println(contactView.getContact());
-    }
-}
+    public void execute() {
 
-//================== Decorator Class ==================
-abstract class ContactDecorator implements ContactDisplay {
+        history.save(contact);
 
-    protected ContactDisplay contactDisplay;
+        contact.setName(name);
+        contact.setPhoneNumber(phone);
+        contact.setEmail(email);
 
-    public ContactDecorator(ContactDisplay contactDisplay) {
-        this.contactDisplay = contactDisplay;
-    }
-}
-
-//================== Formatted Display ==================
-class FormattedDisplay extends ContactDecorator {
-
-    public FormattedDisplay(ContactDisplay contactDisplay) {
-        super(contactDisplay);
+        System.out.println("\nContact Updated Successfully.");
     }
 
     @Override
-    public void display() {
+    public void undo() {
 
-        System.out.println("=================================");
-        System.out.println("      CONTACT INFORMATION");
-        System.out.println("=================================");
+        Contact oldContact = history.restore();
 
-        contactDisplay.display();
+        contact.setName(oldContact.getName());
+        contact.setPhoneNumber(oldContact.getPhoneNumber());
+        contact.setEmail(oldContact.getEmail());
 
-        System.out.println("=================================");
+        System.out.println("\nUndo Successful.");
+    }
+}
+
+//================== Command Manager ==================
+class ContactManager {
+
+    public void executeCommand(Command command) {
+        command.execute();
+    }
+
+    public void undoCommand(Command command) {
+        command.undo();
     }
 }
 
@@ -129,17 +182,58 @@ public class UserRegistration {
 
     public static void main(String[] args) {
 
+        Scanner sc = new Scanner(System.in);
+
         Contact contact = new Contact(
                 "Nandini",
                 "9876543210",
-                "nandini@gmail.com",
-                "Bangalore");
+                "nandini@gmail.com");
 
-        ContactView contactView = new ContactView(contact);
+        ContactHistory history = new ContactHistory();
+        ContactManager manager = new ContactManager();
 
-        ContactDisplay display =
-                new FormattedDisplay(new BasicDisplay(contactView));
+        try {
 
-        display.display();
+            System.out.println(contact);
+
+            System.out.println("\n===== Update Contact =====");
+
+            System.out.print("Enter New Name : ");
+            String name = sc.nextLine();
+
+            System.out.print("Enter New Phone : ");
+            String phone = sc.nextLine();
+
+            System.out.print("Enter New Email : ");
+            String email = sc.nextLine();
+
+            UpdateContactCommand command =
+                    new UpdateContactCommand(
+                            contact,
+                            history,
+                            name,
+                            phone,
+                            email);
+
+            manager.executeCommand(command);
+
+            System.out.println(contact);
+
+            System.out.print("\nUndo Changes? (yes/no) : ");
+            String choice = sc.nextLine();
+
+            if (choice.equalsIgnoreCase("yes")) {
+
+                manager.undoCommand(command);
+
+                System.out.println(contact);
+            }
+
+        } catch (Exception e) {
+
+            System.out.println("Error : " + e.getMessage());
+        }
+
+        sc.close();
     }
 }
